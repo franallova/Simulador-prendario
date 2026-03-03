@@ -560,6 +560,13 @@ def main() -> None:
             flujo_neto_mes = []
             flujo_acumulado_mes = []
 
+            # Vistas para la evolución de la cartera a cobrar (solo cartera nueva)
+            pagare_generado_mes = []
+            intereses_generados_mes = []
+            caida_cartera_cobrada_mes = []
+            saldo_cartera_mes = []
+            saldo_cartera = 0.0
+
             comision_mes_anterior = 0.0
             flujo_acum = 0.0
 
@@ -615,6 +622,17 @@ def main() -> None:
                 cobranza_neta_t = cobranza_t * (1 - incobrabilidad_prop)
                 intereses_netos_t = intereses_brutos_t * (1 - incobrabilidad_prop)
                 gastos_cobrados_netos_t = gastos_cobrados_brutos_t * (1 - incobrabilidad_prop)
+
+                # Cartera a cobrar (solo cartera nueva):
+                # - Pagaré generado: capital + intereses + gastos futuros de la nueva colocación
+                #   aproximado como (suma de todas las cuotas) * número de créditos del mes.
+                pagare_por_credito = sum(cuota_total_por_vida)
+                pagare_gen_t = n_creditos_mes * pagare_por_credito
+                pagare_generado_mes.append(pagare_gen_t)
+                intereses_generados_mes.append(intereses_brutos_t)
+                caida_cartera_cobrada_mes.append(cobranza_neta_t)
+                saldo_cartera += pagare_gen_t - cobranza_neta_t
+                saldo_cartera_mes.append(saldo_cartera)
 
                 # Cobranza total = cartera nueva + cartera existente (real)
                 cobranza_total_t = cobranza_neta_t + cobranza_existente_t
@@ -908,6 +926,29 @@ def main() -> None:
                 df_horizontal.at["Resultado acumulado después de deuda", col] = flujo_acumulado_despues_financ_mes[t]
 
             st.dataframe(df_horizontal.style.format(formato_pesos))
+
+            # Cuadro de evolución de cartera a cobrar (cartera nueva)
+            st.subheader("Evolución de la cartera a cobrar (cartera nueva, meses en columnas)")
+            df_cartera = pd.DataFrame(
+                index=[
+                    "Colocación (capital colocado)",
+                    "Intereses generados (mes)",
+                    "Pagaré generado (nuevas colocaciones)",
+                    "Caída de cartera cobrada (nueva cartera)",
+                    "Saldo cartera a cobrar (fin de mes)",
+                ],
+                columns=columnas_meses,
+            )
+
+            for t in meses:
+                col = columnas_meses[t]
+                df_cartera.at["Colocación (capital colocado)", col] = capital_colocado_mes[t]
+                df_cartera.at["Intereses generados (mes)", col] = intereses_generados_mes[t]
+                df_cartera.at["Pagaré generado (nuevas colocaciones)", col] = pagare_generado_mes[t]
+                df_cartera.at["Caída de cartera cobrada (nueva cartera)", col] = caida_cartera_cobrada_mes[t]
+                df_cartera.at["Saldo cartera a cobrar (fin de mes)", col] = saldo_cartera_mes[t]
+
+            st.dataframe(df_cartera.style.format(formato_pesos))
 
             st.subheader("Gráfico de flujo de caja: neto vs acumulado")
             # Usar Fecha como índice para que el eje X quede en orden cronológico (no alfabético)
