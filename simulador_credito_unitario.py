@@ -812,8 +812,8 @@ def main() -> None:
                 st.metric("VAN", formato_pesos(van_descontado))
             st.caption(
                 f"Tasa desc. VAN: {tasa_descuento_pct:.2f} % mensual. "
-                f"TIR y VAN incluyen valor residual de cartera = {valor_residual_cartera_pct:.0f}% "
-                f"del saldo a cobrar al cierre ({formato_pesos(valor_residual_cartera)})."
+                f"Se considera como valor residual el {valor_residual_cartera_pct:.0f}% "
+                f"del saldo de cartera a cobrar al cierre."
             )
 
             # Fila 2: capital restante y meses clave
@@ -848,6 +848,14 @@ def main() -> None:
                 st.metric("Total operaciones nuevas", f"{total_operaciones_nuevas:,}".replace(",", "."))
             with fila4_col3:
                 st.metric("Mes de saneamiento (deuda en 0)", mes_saneamiento_texto)
+
+            # Fila 5: saldo de cartera y valor residual al cierre
+            fila5_col1, fila5_col2, fila5_col3 = st.columns(3)
+            with fila5_col1:
+                st.metric("Saldo cartera a cobrar (fin horizonte)", formato_pesos(saldo_cartera_final))
+            with fila5_col2:
+                st.metric("Valor residual de cartera (incluido en TIR/VAN)", formato_pesos(valor_residual_cartera))
+            # fila5_col3 queda libre por ahora
 
             df_cf = pd.DataFrame(
                 {
