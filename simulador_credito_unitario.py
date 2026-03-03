@@ -209,6 +209,18 @@ def main() -> None:
     st.set_page_config(page_title="Simulador prendario", layout="wide")
     st.title("Simulador de crédito prendario")
 
+    # Reducimos un poco el tamaño visual para que entre más información en pantalla
+    st.markdown(
+        """
+        <style>
+        .main {
+            zoom: 0.8;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     tab_unitario, tab_cashflow, tab_cartera = st.tabs(["Crédito unitario", "Cashflow", "Cartera existente"])
 
     with tab_unitario:
@@ -522,6 +534,7 @@ def main() -> None:
             # Flujos por mes calendario
             fechas_cf = []
             capital_colocado_mes = []
+            operaciones_mes = []
             cobranza_cuotas_mes = []
             cobranza_existente_mes = []
             intereses_cobrados_mes = []
@@ -562,6 +575,9 @@ def main() -> None:
                 # Egresos de colocación del mes t
                 col_mes = capital_colocado_mensual
                 capital_colocado_mes.append(col_mes)
+                # Cantidad de operaciones nuevas del mes (créditos originados)
+                ops_mes = int(round(n_creditos_mes)) if n_creditos_mes > 0 else 0
+                operaciones_mes.append(ops_mes)
 
                 # Comisiones comerciales (mes vencido): se pagan sobre la colocación del mes anterior
                 com_mes = comision_mes_anterior
@@ -699,6 +715,7 @@ def main() -> None:
             # Ingresos y egresos totales del periodo
             ingresos_totales = sum(cobranza_cuotas_mes)
             egresos_totales = sum(egresos_totales_mes)
+            total_operaciones_nuevas = int(sum(operaciones_mes))
 
             # Mes de breakeven por flujo neto: primer mes con flujo neto de caja positivo
             mes_breakeven_idx = None
@@ -723,7 +740,7 @@ def main() -> None:
             with ind5:
                 st.metric("VAN (3% mens.)", formato_pesos(van_descontado))
             st.caption("VAN (3% mens.): valor actual neto descontando al 3% mensual. Flujo total = suma de flujos netos = último flujo acumulado.")
-            e1, e2, e3, e4, e5 = st.columns(5)
+            e1, e2, e3, e4, e5, e6 = st.columns(6)
             with e1:
                 st.metric("Ingresos totales (cobranzas)", formato_pesos(ingresos_totales))
             with e2:
@@ -734,9 +751,12 @@ def main() -> None:
                 st.metric("Capital restante para breakeven", formato_pesos(capital_restante_breakeven))
             with e5:
                 st.metric("Mes de breakeven (flujo neto)", mes_breakeven_texto)
+            with e6:
+                st.metric("Total operaciones nuevas", f"{total_operaciones_nuevas:,}".replace(",", "."))
             st.caption(
                 "Capital restante para breakeven: suma de los flujos de caja negativos hasta el mes anterior al primer pago a la deuda. "
-                "Mes de breakeven: primer mes en el que el flujo neto de caja del mes es positivo."
+                "Mes de breakeven: primer mes en el que el flujo neto de caja del mes es positivo. "
+                "Total operaciones nuevas: cantidad de créditos originados en todo el horizonte."
             )
             if deuda_inicial_financ > 0:
                 st.metric("Saldo deuda al cierre del horizonte", formato_pesos(saldo_deuda_mes[-1]) if saldo_deuda_mes else formato_pesos(0))
@@ -746,6 +766,7 @@ def main() -> None:
                     "Mes": etiquetas_meses,
                     "Fecha": fechas_cf,
                     "Capital colocado": capital_colocado_mes,
+                    "Operaciones nuevas": operaciones_mes,
                     "Cobranza cuotas": cobranza_cuotas_mes,
                     "Cobranza cartera existente": cobranza_existente_mes,
                     "Intereses cobrados": intereses_cobrados_mes,
@@ -824,6 +845,7 @@ def main() -> None:
                 index=[
                     "INGRESOS - Cobranza cuotas (total)",
                     "INGRESOS - Cobranza cartera existente",
+                    "INGRESOS - Operaciones nuevas (cantidad)",
                     "EGRESOS - Capital colocado",
                     "EGRESOS - Comisiones comerciales",
                     "EGRESOS - Gastos fijos",
@@ -847,6 +869,7 @@ def main() -> None:
                 col = columnas_meses[t]
                 df_horizontal.at["INGRESOS - Cobranza cuotas (total)", col] = cobranza_cuotas_mes[t]
                 df_horizontal.at["INGRESOS - Cobranza cartera existente", col] = cobranza_existente_mes[t]
+                df_horizontal.at["INGRESOS - Operaciones nuevas (cantidad)", col] = operaciones_mes[t]
                 df_horizontal.at["EGRESOS - Capital colocado", col] = capital_colocado_mes[t]
                 df_horizontal.at["EGRESOS - Comisiones comerciales", col] = comisiones_mes[t]
                 df_horizontal.at["EGRESOS - Gastos fijos", col] = gastos_fijos_mes[t]
