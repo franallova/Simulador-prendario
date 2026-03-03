@@ -213,7 +213,7 @@ def main() -> None:
     st.markdown(
         """
         <style>
-        .main {
+        .block-container {
             zoom: 0.8;
         }
         </style>
@@ -690,8 +690,16 @@ def main() -> None:
             tir_cf_anual = (1 + tir_cf_mensual) ** 12 - 1 if tir_cf_mensual != 0 else 0.0
             flujo_total = flujo_acumulado_mes[-1] if flujo_acumulado_mes else 0.0
             van_cero = calcular_van(flujo_neto_mes, 0.0)
-            # VAN al 3% mensual (~43% anual) como referencia
-            tasa_descuento_mensual = 0.03
+            # VAN descontado a una tasa mensual elegible por el usuario
+            tasa_descuento_pct = st.number_input(
+                "Tasa desc. VAN (% mensual)",
+                min_value=0.0,
+                max_value=20.0,
+                value=3.0,
+                step=0.25,
+                key="tasa_descuento_van_cf",
+            )
+            tasa_descuento_mensual = tasa_descuento_pct / 100.0
             van_descontado = calcular_van(flujo_neto_mes, tasa_descuento_mensual)
             # Mes de recupero: primer mes con flujo acumulado >= 0
             mes_recupero_idx = None
@@ -734,38 +742,51 @@ def main() -> None:
             )
 
             st.subheader("Indicadores financieros del cashflow")
-            ind1, ind2, ind3, ind4, ind5 = st.columns(5)
-            with ind1:
+
+            # Fila 1: TIRs y VAN (con tasa de descuento elegible)
+            fila1_col1, fila1_col2, fila1_col3, fila1_col4 = st.columns(4)
+            with fila1_col1:
                 st.metric("TIR mensual", f"{tir_cf_mensual * 100:.2f} %")
-            with ind2:
+            with fila1_col2:
                 st.metric("TIR anual", f"{tir_cf_anual * 100:.2f} %")
-            with ind3:
-                st.metric("Flujo total (periodo)", formato_pesos(flujo_total))
-            with ind4:
-                st.metric("Mes de recupero", mes_recupero_texto)
-            with ind5:
-                st.metric("VAN (3% mens.)", formato_pesos(van_descontado))
-            st.caption("VAN (3% mens.): valor actual neto descontando al 3% mensual. Flujo total = suma de flujos netos = último flujo acumulado.")
-            e1, e2, e3, e4, e5, e6 = st.columns(6)
-            with e1:
-                st.metric("Ingresos totales (cobranzas)", formato_pesos(ingresos_totales))
-            with e2:
-                st.metric("Egresos totales", formato_pesos(egresos_totales))
-            with e3:
-                st.metric("Mes de saneamiento (deuda en 0)", mes_saneamiento_texto)
-            with e4:
+            with fila1_col3:
+                st.metric("VAN", formato_pesos(van_descontado))
+            with fila1_col4:
+                st.write("")  # espacio
+                st.caption(f"Tasa desc.: {tasa_descuento_pct:.2f} % mensual")
+
+            # Fila 2: capital restante y meses clave
+            fila2_col1, fila2_col2, fila2_col3, fila2_col4 = st.columns(4)
+            with fila2_col1:
                 st.metric("Capital restante para breakeven", formato_pesos(capital_restante_breakeven))
-            with e5:
+            with fila2_col2:
                 st.metric("Mes de breakeven (flujo neto)", mes_breakeven_texto)
-            with e6:
+            with fila2_col3:
+                st.metric("Mes de recupero", mes_recupero_texto)
+            with fila2_col4:
+                st.metric("Mes de saneamiento (deuda en 0)", mes_saneamiento_texto)
+
+            # Fila 3: flujo total, ingresos y egresos
+            fila3_col1, fila3_col2, fila3_col3 = st.columns(3)
+            with fila3_col1:
+                st.metric("Flujo total (periodo)", formato_pesos(flujo_total))
+            with fila3_col2:
+                st.metric("Ingresos totales (cobranzas)", formato_pesos(ingresos_totales))
+            with fila3_col3:
+                st.metric("Egresos totales", formato_pesos(egresos_totales))
+
+            # Fila 4: saldo deuda final y total de operaciones
+            fila4_col1, fila4_col2 = st.columns(2)
+            with fila4_col1:
+                if deuda_inicial_financ > 0:
+                    st.metric(
+                        "Saldo deuda al cierre del horizonte",
+                        formato_pesos(saldo_deuda_mes[-1]) if saldo_deuda_mes else formato_pesos(0),
+                    )
+                else:
+                    st.metric("Saldo deuda al cierre del horizonte", formato_pesos(0))
+            with fila4_col2:
                 st.metric("Total operaciones nuevas", f"{total_operaciones_nuevas:,}".replace(",", "."))
-            st.caption(
-                "Capital restante para breakeven: suma de los flujos de caja negativos hasta el mes anterior al primer pago a la deuda. "
-                "Mes de breakeven: primer mes en el que el flujo neto de caja del mes es positivo. "
-                "Total operaciones nuevas: cantidad de créditos originados en todo el horizonte."
-            )
-            if deuda_inicial_financ > 0:
-                st.metric("Saldo deuda al cierre del horizonte", formato_pesos(saldo_deuda_mes[-1]) if saldo_deuda_mes else formato_pesos(0))
 
             df_cf = pd.DataFrame(
                 {
