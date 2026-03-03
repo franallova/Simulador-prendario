@@ -413,14 +413,34 @@ def main() -> None:
             )
             st.caption(formato_pesos(credito_promedio))
         with r1c4:
-            capital_colocado_mensual = st.number_input(
-                "Capital colocado/mes ($)",
+            capital_colocado_inicial = st.number_input(
+                "Capital colocado inicial mes 0 ($)",
                 min_value=0.0,
                 value=250_000_000.0,
                 step=10_000_000.0,
                 format="%.0f",
             )
-            st.caption(formato_pesos(capital_colocado_mensual))
+            st.caption(formato_pesos(capital_colocado_inicial))
+
+        r1b1, r1b2 = st.columns(2)
+        with r1b1:
+            crecimiento_colocacion_mensual = st.number_input(
+                "Crecimiento colocación mensual ($)",
+                min_value=0.0,
+                value=50_000_000.0,
+                step=5_000_000.0,
+                format="%.0f",
+            )
+            st.caption(f"Incremento lineal por mes: {formato_pesos(crecimiento_colocacion_mensual)}")
+        with r1b2:
+            capital_colocado_objetivo = st.number_input(
+                "Capital colocado objetivo/mes ($)",
+                min_value=0.0,
+                value=250_000_000.0,
+                step=10_000_000.0,
+                format="%.0f",
+            )
+            st.caption("Tope de colocación mensual (se alcanza y luego se mantiene)")
 
         r2c1, r2c2, r2c3, r2c4 = st.columns(4)
         with r2c1:
@@ -530,11 +550,6 @@ def main() -> None:
                         "Interes_Ordinario": float(row["Interes_Ordinario"]),
                     }
 
-            # Número de créditos originados cada mes
-            n_creditos_mes = (
-                capital_colocado_mensual / credito_promedio if credito_promedio > 0 else 0.0
-            )
-
             # Extraemos de df unitario los arrays por mes de vida (1..cuotas)
             interes_por_vida = df["Interés"].tolist()
             cuota_total_por_vida = df["Cuota total"].tolist()
@@ -590,17 +605,21 @@ def main() -> None:
                 seguros_pagados_mes.append(seguros_pagados_t)
 
                 # Egresos de colocación del mes t
-                col_mes = capital_colocado_mensual
+                # Colocación mensual creciente: parte de un nivel inicial y crece linealmente hasta un objetivo.
+                col_mes = capital_colocado_inicial + crecimiento_colocacion_mensual * t
+                if capital_colocado_objetivo > 0:
+                    col_mes = min(col_mes, capital_colocado_objetivo)
                 capital_colocado_mes.append(col_mes)
                 # Cantidad de operaciones nuevas del mes (créditos originados)
-                ops_mes = int(round(n_creditos_mes)) if n_creditos_mes > 0 else 0
+                n_creditos_mes_t = col_mes / credito_promedio if credito_promedio > 0 else 0.0
+                ops_mes = int(round(n_creditos_mes_t)) if n_creditos_mes_t > 0 else 0
                 operaciones_mes.append(ops_mes)
 
                 # Comisiones comerciales (mes vencido): se pagan sobre la colocación del mes anterior
                 com_mes = comision_mes_anterior
                 comisiones_mes.append(com_mes)
                 # Se calcula la comisión del mes actual para pagar el próximo
-                comision_mes_anterior = capital_colocado_mensual * comision_comercial_prop
+                comision_mes_anterior = col_mes * comision_comercial_prop
 
                 # Gastos fijos
                 gf_mes = gastos_fijos_mensuales
@@ -614,9 +633,12 @@ def main() -> None:
                 for origen in range(t):
                     edad = t - 1 - origen  # mes de vida del crédito (0 = primera cuota)
                     if 0 <= edad < cuotas:
-                        cobranza_t += n_creditos_mes * cuota_total_por_vida[edad]
-                        intereses_brutos_t += n_creditos_mes * interes_por_vida[edad]
-                        gastos_cobrados_brutos_t += n_creditos_mes * gasto_cuota_promedio
+                        # Créditos originados en el mes "origen" (proporcional a la colocación de ese mes)
+                        col_origen = capital_colocado_mes[origen]
+                        n_creditos_origen = col_origen / credito_promedio if credito_promedio > 0 else 0.0
+                        cobranza_t += n_creditos_origen * cuota_total_por_vida[edad]
+                        intereses_brutos_t += n_creditos_origen * interes_por_vida[edad]
+                        gastos_cobrados_brutos_t += n_creditos_origen * gasto_cuota_promedio
 
                 # Aplicamos incobrabilidad sobre la caída mensual de la cartera nueva
                 cobranza_neta_t = cobranza_t * (1 - incobrabilidad_prop)
@@ -627,7 +649,7 @@ def main() -> None:
                 # - Pagaré generado: capital + intereses + gastos futuros de la nueva colocación
                 #   aproximado como (suma de todas las cuotas) * número de créditos del mes.
                 pagare_por_credito = sum(cuota_total_por_vida)
-                pagare_gen_t = n_creditos_mes * pagare_por_credito
+                pagare_gen_t = n_creditos_mes_t * pagare_por_credito
                 pagare_generado_mes.append(pagare_gen_t)
                 intereses_generados_mes.append(intereses_brutos_t)
                 caida_cartera_cobrada_mes.append(cobranza_neta_t)
