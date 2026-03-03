@@ -422,12 +422,6 @@ def main() -> None:
             )
             st.caption(formato_pesos(capital_colocado_mensual))
 
-        # Cantidad de operaciones nuevas por mes (capital colocado / crédito promedio)
-        ops_prom_mes = int(round(capital_colocado_mensual / credito_promedio)) if credito_promedio > 0 else 0
-        r1b1, r1b2, r1b3, r1b4 = st.columns(4)
-        with r1b1:
-            st.metric("Operaciones nuevas/mes", f"{ops_prom_mes:,}".replace(",", "."))
-
         r2c1, r2c2, r2c3, r2c4 = st.columns(4)
         with r2c1:
             comision_comercial_pct = st.number_input(
@@ -462,6 +456,16 @@ def main() -> None:
                 value=6.0,
                 step=1.0,
             )
+
+        # Tasa de descuento para el VAN (mensual), usada luego en los indicadores
+        tasa_descuento_pct = st.number_input(
+            "Tasa desc. VAN (% mensual)",
+            min_value=0.0,
+            max_value=20.0,
+            value=3.0,
+            step=0.25,
+            key="tasa_descuento_van_cf",
+        )
 
         imp_debcred_pct = 0.012
 
@@ -690,15 +694,7 @@ def main() -> None:
             tir_cf_anual = (1 + tir_cf_mensual) ** 12 - 1 if tir_cf_mensual != 0 else 0.0
             flujo_total = flujo_acumulado_mes[-1] if flujo_acumulado_mes else 0.0
             van_cero = calcular_van(flujo_neto_mes, 0.0)
-            # VAN descontado a una tasa mensual elegible por el usuario
-            tasa_descuento_pct = st.number_input(
-                "Tasa desc. VAN (% mensual)",
-                min_value=0.0,
-                max_value=20.0,
-                value=3.0,
-                step=0.25,
-                key="tasa_descuento_van_cf",
-            )
+            # VAN descontado a la tasa elegida en los parámetros
             tasa_descuento_mensual = tasa_descuento_pct / 100.0
             van_descontado = calcular_van(flujo_neto_mes, tasa_descuento_mensual)
             # Mes de recupero: primer mes con flujo acumulado >= 0
@@ -743,17 +739,15 @@ def main() -> None:
 
             st.subheader("Indicadores financieros del cashflow")
 
-            # Fila 1: TIRs y VAN (con tasa de descuento elegible)
-            fila1_col1, fila1_col2, fila1_col3, fila1_col4 = st.columns(4)
+            # Fila 1: TIRs y VAN
+            fila1_col1, fila1_col2, fila1_col3 = st.columns(3)
             with fila1_col1:
                 st.metric("TIR mensual", f"{tir_cf_mensual * 100:.2f} %")
             with fila1_col2:
                 st.metric("TIR anual", f"{tir_cf_anual * 100:.2f} %")
             with fila1_col3:
                 st.metric("VAN", formato_pesos(van_descontado))
-            with fila1_col4:
-                st.write("")  # espacio
-                st.caption(f"Tasa desc.: {tasa_descuento_pct:.2f} % mensual")
+            st.caption(f"Tasa desc. VAN: {tasa_descuento_pct:.2f} % mensual")
 
             # Fila 2: capital restante y meses clave
             fila2_col1, fila2_col2, fila2_col3, fila2_col4 = st.columns(4)
