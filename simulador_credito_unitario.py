@@ -422,6 +422,12 @@ def main() -> None:
             )
             st.caption(formato_pesos(capital_colocado_mensual))
 
+        # Cantidad de operaciones nuevas por mes (capital colocado / crédito promedio)
+        ops_prom_mes = int(round(capital_colocado_mensual / credito_promedio)) if credito_promedio > 0 else 0
+        r1b1, r1b2, r1b3, r1b4 = st.columns(4)
+        with r1b1:
+            st.metric("Operaciones nuevas/mes", f"{ops_prom_mes:,}".replace(",", "."))
+
         r2c1, r2c2, r2c3, r2c4 = st.columns(4)
         with r2c1:
             comision_comercial_pct = st.number_input(
