@@ -427,11 +427,15 @@ def main() -> None:
             crecimiento_colocacion_mensual = st.number_input(
                 "Crecimiento colocación mensual ($)",
                 min_value=0.0,
-                value=50_000_000.0,
+                value=30_000_000.0,
                 step=5_000_000.0,
                 format="%.0f",
             )
-            st.caption(f"Incremento lineal por mes: {formato_pesos(crecimiento_colocacion_mensual)}")
+            crecimiento_mm = crecimiento_colocacion_mensual / 1_000_000 if crecimiento_colocacion_mensual else 0.0
+            st.caption(
+                f"Incremento por mes: {formato_pesos(crecimiento_colocacion_mensual)} "
+                f"({crecimiento_mm:,.1f} millones)".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
         with r1b2:
             capital_colocado_objetivo = st.number_input(
                 "Capital colocado objetivo/mes ($)",
@@ -440,7 +444,11 @@ def main() -> None:
                 step=10_000_000.0,
                 format="%.0f",
             )
-            st.caption("Tope de colocación mensual (se alcanza y luego se mantiene)")
+            objetivo_mm = capital_colocado_objetivo / 1_000_000 if capital_colocado_objetivo else 0.0
+            st.caption(
+                "Tope de colocación mensual (se alcanza y luego se mantiene) "
+                f"= {objetivo_mm:,.1f} millones".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
 
         r2c1, r2c2, r2c3, r2c4 = st.columns(4)
         with r2c1:
