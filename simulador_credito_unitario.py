@@ -750,15 +750,13 @@ def main() -> None:
             st.caption(f"Tasa desc. VAN: {tasa_descuento_pct:.2f} % mensual")
 
             # Fila 2: capital restante y meses clave
-            fila2_col1, fila2_col2, fila2_col3, fila2_col4 = st.columns(4)
+            fila2_col1, fila2_col2, fila2_col3 = st.columns(3)
             with fila2_col1:
                 st.metric("Capital restante para breakeven", formato_pesos(capital_restante_breakeven))
             with fila2_col2:
                 st.metric("Mes de breakeven (flujo neto)", mes_breakeven_texto)
             with fila2_col3:
                 st.metric("Mes de recupero", mes_recupero_texto)
-            with fila2_col4:
-                st.metric("Mes de saneamiento (deuda en 0)", mes_saneamiento_texto)
 
             # Fila 3: flujo total, ingresos y egresos
             fila3_col1, fila3_col2, fila3_col3 = st.columns(3)
@@ -769,8 +767,8 @@ def main() -> None:
             with fila3_col3:
                 st.metric("Egresos totales", formato_pesos(egresos_totales))
 
-            # Fila 4: saldo deuda final y total de operaciones
-            fila4_col1, fila4_col2 = st.columns(2)
+            # Fila 4: saldo deuda final, total operaciones y mes de saneamiento
+            fila4_col1, fila4_col2, fila4_col3 = st.columns(3)
             with fila4_col1:
                 if deuda_inicial_financ > 0:
                     st.metric(
@@ -781,6 +779,8 @@ def main() -> None:
                     st.metric("Saldo deuda al cierre del horizonte", formato_pesos(0))
             with fila4_col2:
                 st.metric("Total operaciones nuevas", f"{total_operaciones_nuevas:,}".replace(",", "."))
+            with fila4_col3:
+                st.metric("Mes de saneamiento (deuda en 0)", mes_saneamiento_texto)
 
             df_cf = pd.DataFrame(
                 {
