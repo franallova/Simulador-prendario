@@ -494,6 +494,14 @@ def main() -> None:
             step=0.25,
             key="tasa_descuento_van_cf",
         )
+        # Porcentaje del saldo de cartera a cobrar al cierre que se reconoce como valor residual
+        valor_residual_cartera_pct = st.number_input(
+            "% valor residual de cartera al cierre",
+            min_value=0.0,
+            max_value=150.0,
+            value=80.0,
+            step=5.0,
+        )
 
         imp_debcred_pct = 0.012
 
@@ -737,14 +745,21 @@ def main() -> None:
                 flujo_acum_despues_financ += f
                 flujo_acumulado_despues_financ_mes.append(flujo_acum_despues_financ)
 
-            # Indicadores financieros del cashflow
-            tir_cf_mensual = calcular_irr(flujo_neto_mes)
+            # Valor residual de cartera al cierre del horizonte (solo cartera nueva)
+            saldo_cartera_final = saldo_cartera_mes[-1] if saldo_cartera_mes else 0.0
+            valor_residual_cartera = saldo_cartera_final * (valor_residual_cartera_pct / 100.0)
+
+            # Indicadores financieros del cashflow (incluyen valor residual de cartera)
+            flujos_con_residual = flujo_neto_mes.copy()
+            if flujos_con_residual:
+                flujos_con_residual[-1] += valor_residual_cartera
+
+            tir_cf_mensual = calcular_irr(flujos_con_residual)
             tir_cf_anual = (1 + tir_cf_mensual) ** 12 - 1 if tir_cf_mensual != 0 else 0.0
-            flujo_total = flujo_acumulado_mes[-1] if flujo_acumulado_mes else 0.0
-            van_cero = calcular_van(flujo_neto_mes, 0.0)
+            flujo_total = sum(flujos_con_residual) if flujos_con_residual else 0.0
             # VAN descontado a la tasa elegida en los parámetros
             tasa_descuento_mensual = tasa_descuento_pct / 100.0
-            van_descontado = calcular_van(flujo_neto_mes, tasa_descuento_mensual)
+            van_descontado = calcular_van(flujos_con_residual, tasa_descuento_mensual)
             # Mes de recupero: primer mes con flujo acumulado >= 0
             mes_recupero_idx = None
             for t, ac in enumerate(flujo_acumulado_mes):
@@ -795,7 +810,11 @@ def main() -> None:
                 st.metric("TIR anual", f"{tir_cf_anual * 100:.2f} %")
             with fila1_col3:
                 st.metric("VAN", formato_pesos(van_descontado))
-            st.caption(f"Tasa desc. VAN: {tasa_descuento_pct:.2f} % mensual")
+            st.caption(
+                f"Tasa desc. VAN: {tasa_descuento_pct:.2f} % mensual. "
+                f"TIR y VAN incluyen valor residual de cartera = {valor_residual_cartera_pct:.0f}% "
+                f"del saldo a cobrar al cierre ({formato_pesos(valor_residual_cartera)})."
+            )
 
             # Fila 2: capital restante y meses clave
             fila2_col1, fila2_col2, fila2_col3 = st.columns(3)
